@@ -32,3 +32,21 @@ def get_users():
 
     return jsonify(users_list), 200
 
+@app.get('/users/<int:user_id>')
+def get_user(user_id:int):
+    with Session() as session:
+        result = session.execute(text("SELECT * FROM users WHERE id=:id"),{"id":user_id}).fetchall()
+        if not result:
+            return jsonify({"message": "user not found"}), 404
+        users_list = [
+            {
+                "id": row.id,
+                "f_name": row.f_name,
+                "l_name": row.l_name,
+                "phone": row.phone,
+                "email": row.email
+            } for row in result
+        ]
+
+        return jsonify(users_list), 200
+
