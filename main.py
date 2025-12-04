@@ -80,7 +80,7 @@ def create_user():
         db.execute(
             text("""
                 INSERT INTO users (f_name, l_name, email, password, phone, role)
-                VALUES (:f_name, :l_name, :email, :password, :role)
+                VALUES (:f_name, :l_name, :email, :password, :phone, :role)
             """),
             {"f_name": f_name, "l_name":l_name, "email": email, "password": password, "phone":phone, "role":role}
         )
@@ -94,7 +94,7 @@ def create_user():
 
     return jsonify({
         "message": "User created successfully.",
-        "user": {
+        "users": {
             "id": new_user.id,
             "f_name": new_user.f_name,
             "l_name": new_user.l_name,
@@ -103,21 +103,6 @@ def create_user():
             "role": new_user.role
         }
     }), 201
-
-@app.patch("/users/<int:user_id>")
-def update_user(user_id):
-    data = request.json or {}
-
-    if "role" not in data or not data["role"]:
-        data["role"] = "customer"  # default if missing
-
-    execute("""
-        UPDATE users
-        SET f_name=:f_name, l_name=:l_name, phone=:phone, email=:email,
-            password=:password, role=:role::user_role, profile_picture=:profile_picture
-        WHERE id=:id
-    """, {**data, "id": user_id})
-    return {"message": "User updated"}
 
 @app.delete("/users/<int:user_id>")
 def delete_user(user_id):
