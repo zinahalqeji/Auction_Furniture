@@ -88,7 +88,7 @@ def create_user():
 
         # Hämta nya användaren
         new_user = db.execute(
-            text("SELECT id, name, email FROM users WHERE email = :email"),
+            text("SELECT id, f_name,l_name, email, phone, role, password FROM users WHERE email = :email"),
             {"email": email}
         ).fetchone()
 
@@ -100,6 +100,7 @@ def create_user():
             "l_name": new_user.l_name,
             "email": new_user.email,
             "phone": new_user.phone,
+            "password": new_user.password,
             "role": new_user.role
         }
     }), 201
