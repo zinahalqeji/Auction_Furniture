@@ -2,10 +2,9 @@ from flask import Flask, jsonify, request
 from sqlalchemy import create_engine, URL, text
 from sqlalchemy.orm import sessionmaker
 
-# --------------------------
-# Database Setup
-# --------------------------
-
+# ----------------------------
+# Database connection
+# ----------------------------
 url = URL.create(
     drivername="postgresql+psycopg2",
     host="localhost",
@@ -15,136 +14,118 @@ url = URL.create(
     database="auction_furniture"
 )
 
-engine = create_engine(url, echo=False, future=True)
-Session = sessionmaker(bind=engine, autoflush=False)
+engine = create_engine(url)
+Session = sessionmaker(bind=engine)
 
 app = Flask(__name__)
 
-# --------------------------
-# Helper Functions
-# --------------------------
+# ----------------------------
+# Helper functions
+# ----------------------------
+def to_dict(row):
+    """Convert SQLAlchemy Row object to dictionary."""
+    return dict(row._mapping)
 
-def row_to_dict(row):
-    """Convert SQLAlchemy Row object to dict."""
-    return {
-        "id": row.id,
-        "f_name": row.f_name,
-        "l_name": row.l_name,
-        "phone": row.phone,
-        "email": row.email
-    }
+def execute(query, params=None, fetch=None):
+    with Session() as session:
+        result = session.execute(text(query), params or {})
+        session.commit()
 
-# --------------------------
-# Routes
-# --------------------------
+        if fetch == "one":
+            return result.fetchone()
+        if fetch == "all":
+            return result.fetchall()
+        return None
 
-# GET all users
+# ----------------------------
+# USERS CRUD
+# ----------------------------
+
 @app.get("/users")
 def get_users():
-    with Session() as session:
-        result = session.execute(text("SELECT * FROM users"))
-        rows = result.fetchall()
+    rows = execute("SELECT * FROM users", fetch="all")
+    return jsonify([to_dict(row) for row in rows])
 
-        users_list = [row_to_dict(row) for row in rows]
-
-    return jsonify(users_list), 200
-
-
-# GET user by ID
 @app.get("/users/<int:user_id>")
 def get_user(user_id):
-    with Session() as session:
-        row = session.execute(
-            text("SELECT * FROM users WHERE id = :id"),
-            {"id": user_id}
-        ).fetchone()
+    row = execute("SELECT * FROM users WHERE id=:id", {"id": user_id}, fetch="one")
+    if not row:
+        return {"message": "User not found"}, 404
+    return to_dict(row)
 
-        if row is None:
-            return jsonify({"message": "User not found"}), 404
-
-        return jsonify(row_to_dict(row)), 200
-
-
-# POST create new user
-@app.post("/users")
+@app.post('/users')
 def create_user():
-    data = request.get_json()
+    data = request.get_json() or {}
+    f_name = data.get("f_name")
+    l_name = data.get("l_name")
+    email = data.get("email")
+    phone = data.get("phone")
+    password = data.get("password")
+    role = data.get("role")
 
-    with Session() as session:
-        row = session.execute(
-            text("""
-                INSERT INTO users (f_name, l_name, phone, email)
-                VALUES (:f_name, :l_name, :phone, :email)
-                RETURNING id, f_name, l_name, phone, email
-            """),
-            data
+    if not email or not password:
+        return jsonify({"message": "Please provide email and password."}), 400
+
+    with Session() as db:
+        # Kolla om e-post redan finns
+        existing = db.execute(
+            text("SELECT id FROM users WHERE email = :email"),
+            {"email": email}
         ).fetchone()
 
-        session.commit()
+        if existing:
+            return jsonify({"message": "Email already registered."}), 409
+
+        # Skapa användare (plaintext password – byt till hashing senare!)
+        db.execute(
+            text("""
+                INSERT INTO users (f_name, l_name, email, password, phone, role)
+                VALUES (:f_name, :l_name, :email, :password, :role)
+            """),
+            {"f_name": f_name, "l_name":l_name, "email": email, "password": password, "phone":phone, "role":role}
+        )
+        db.commit()
+
+        # Hämta nya användaren
+        new_user = db.execute(
+            text("SELECT id, name, email FROM users WHERE email = :email"),
+            {"email": email}
+        ).fetchone()
 
     return jsonify({
-        "message": "User created",
-        "user": row_to_dict(row)
+        "message": "User created successfully.",
+        "user": {
+            "id": new_user.id,
+            "f_name": new_user.f_name,
+            "l_name": new_user.l_name,
+            "email": new_user.email,
+            "phone": new_user.phone,
+            "role": new_user.role
+        }
     }), 201
 
-
-# PATCH update user
 @app.patch("/users/<int:user_id>")
 def update_user(user_id):
-    data = request.get_json()
+    data = request.json or {}
 
-    with Session() as session:
-        row = session.execute(
-            text("""
-                UPDATE users
-                SET 
-                    f_name = COALESCE(:f_name, f_name),
-                    l_name = COALESCE(:l_name, l_name),
-                    phone  = COALESCE(:phone, phone),
-                    email  = COALESCE(:email, email)
-                WHERE id = :id
-                RETURNING id, f_name, l_name, phone, email
-            """),
-            {
-                "id": user_id,
-                "f_name": data.get("f_name"),
-                "l_name": data.get("l_name"),
-                "phone": data.get("phone"),
-                "email": data.get("email")
-            }
-        ).fetchone()
+    if "role" not in data or not data["role"]:
+        data["role"] = "customer"  # default if missing
 
-        session.commit()
+    execute("""
+        UPDATE users
+        SET f_name=:f_name, l_name=:l_name, phone=:phone, email=:email,
+            password=:password, role=:role::user_role, profile_picture=:profile_picture
+        WHERE id=:id
+    """, {**data, "id": user_id})
+    return {"message": "User updated"}
 
-        if row is None:
-            return jsonify({"message": "User not found"}), 404
-
-        return jsonify({
-            "message": "User updated",
-            "user": row_to_dict(row)
-        }), 200
-
-
-# DELETE user
 @app.delete("/users/<int:user_id>")
 def delete_user(user_id):
-    with Session() as session:
-        row = session.execute(
-            text("DELETE FROM users WHERE id = :id RETURNING id"),
-            {"id": user_id}
-        ).fetchone()
+    execute("DELETE FROM users WHERE id=:id", {"id": user_id})
+    return {"message": "User deleted"}
 
-        session.commit()
-
-        if row is None:
-            return jsonify({"message": "User not found"}), 404
-
-        return jsonify({"message": "User deleted"}), 200
-
-
-# --------------------------
+# ----------------------------
 # Run App
-# --------------------------
-
+# ----------------------------
 if __name__ == "__main__":
     app.run(debug=True)
