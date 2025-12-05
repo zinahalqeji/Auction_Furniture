@@ -10,7 +10,7 @@ url = URL.create(
     host="localhost",
     port=5432,
     username="postgres",
-    password="Svea0109",
+    password="123abc",
     database="auction_furniture"
 )
 
@@ -113,6 +113,13 @@ def delete_user(user_id):
 @app.get("/auction")
 def get_auction():
     rows = execute("SELECT * FROM auction", fetch="all")
+    return jsonify([to_dict(row) for row in rows])
+
+
+
+@app.get("/bids")
+def get_bids():
+    rows = execute("SELECT * FROM bid", fetch="all")
     return jsonify([to_dict(row) for row in rows])
 
 # ----------------------------
