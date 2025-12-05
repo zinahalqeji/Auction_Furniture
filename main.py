@@ -1,3 +1,4 @@
+
 from flask import Flask, jsonify, request
 from sqlalchemy import create_engine, URL, text
 from sqlalchemy.orm import sessionmaker
@@ -5,13 +6,14 @@ from sqlalchemy.orm import sessionmaker
 # ----------------------------
 # Database connection
 # ----------------------------
+
 url = URL.create(
     drivername="postgresql+psycopg2",
     host="localhost",
     port=5432,
     username="postgres",
 
-    password="Svea0109",  
+    password="2008",
 
     database="auction_furniture"
 )
@@ -121,7 +123,7 @@ def get_auction(auction_id):
     return to_dict(row)
 
 @app.get("/auction")
-def get_auction():
+def get_auctions():
     rows = execute("SELECT * FROM auction", fetch="all")
     return jsonify([to_dict(row) for row in rows])
 
@@ -136,7 +138,6 @@ def get_bids():
 def get_payment():
     rows = execute("SELECT * FROM payment", fetch="all")
     return jsonify([to_dict(row) for row in rows])
- main
 
 # ----------------------------
 # Run App
