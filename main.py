@@ -122,6 +122,14 @@ def get_bids():
     rows = execute("SELECT * FROM bid", fetch="all")
     return jsonify([to_dict(row) for row in rows])
 
+
+@app.get("/bids/<int:bid_id>")
+def get_bid(bid_id):
+    row = execute("SELECT * FROM bid WHERE id=:id", {"id": bid_id}, fetch="one")
+    if not row:
+        return {"message": "bid not found"}, 404
+    return to_dict(row)
+
 # ----------------------------
 # Run App
 # ----------------------------
