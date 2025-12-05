@@ -114,6 +114,9 @@ def delete_user(user_id):
     execute("DELETE FROM users WHERE id=:id", {"id": user_id})
     return {"message": "User deleted"}
 
+# ----------------------------
+# Auction CRUD
+# ----------------------------
 
 @app.get("/auction/<int:auction_id>")
 def get_auction(auction_id):
@@ -127,12 +130,18 @@ def get_auctions():
     rows = execute("SELECT * FROM auction", fetch="all")
     return jsonify([to_dict(row) for row in rows])
 
-
+# ----------------------------
+# Bid CRUD
+# ----------------------------
 
 @app.get("/bids")
 def get_bids():
     rows = execute("SELECT * FROM bid", fetch="all")
     return jsonify([to_dict(row) for row in rows])
+
+# ----------------------------
+# Payment CRUD
+# ----------------------------
 
 @app.get("/payment")
 def get_payment():
