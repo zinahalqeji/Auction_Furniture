@@ -10,7 +10,7 @@ url = URL.create(
     host="localhost",
     port=5432,
     username="postgres",
-    password="2008",
+    password="Svea0109",
     database="auction_furniture"
 )
 
@@ -109,6 +109,11 @@ def create_user():
 def delete_user(user_id):
     execute("DELETE FROM users WHERE id=:id", {"id": user_id})
     return {"message": "User deleted"}
+
+@app.get("/auction")
+def get_auction():
+    rows = execute("SELECT * FROM auction", fetch="all")
+    return jsonify([to_dict(row) for row in rows])
 
 # ----------------------------
 # Run App
