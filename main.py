@@ -10,8 +10,8 @@ url = URL.create(
     host="localhost",
     port=5432,
     username="postgres",
-    password="Svea0109",
-    database="auction_furniture"
+    password="Svante110",
+    database="auction_funiture"
 )
 
 engine = create_engine(url)
@@ -118,5 +118,11 @@ def get_auction():
 # ----------------------------
 # Run App
 # ----------------------------
+
+@app.get("/item")
+def get_items():
+    rows = execute("SELECT * FROM furniture_item", fetch="all")
+    return jsonify([to_dict(row) for row in rows])
+
 if __name__ == "__main__":
     app.run(debug=True)
