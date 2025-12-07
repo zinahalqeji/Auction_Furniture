@@ -114,6 +114,57 @@ def delete_user(user_id):
     execute("DELETE FROM users WHERE id=:id", {"id": user_id})
     return {"message": "User deleted"}
 
+@app.put("/users/<int:user_id>")
+def update_user(user_id):
+    data = request.get_json() or {}
+
+    # Fetch existing user
+    existing_user = execute(
+        "SELECT * FROM users WHERE id=:id",
+        {"id": user_id},
+        fetch="one"
+    )
+
+    if not existing_user:
+        return jsonify({"message": "User not found"}), 404
+
+    # Allowed fields to update
+    fields = ["f_name", "l_name", "email", "phone", "password", "role"]
+
+    # Prepare SQL SET part dynamically
+    updates = []
+    params = {"id": user_id}
+
+    for field in fields:
+        if field in data:
+            updates.append(f"{field} = :{field}")
+            params[field] = data[field]
+
+    if not updates:
+        return jsonify({"message": "No valid fields provided."}), 400
+
+    update_query = f"""
+        UPDATE users
+        SET {', '.join(updates)}
+        WHERE id = :id
+    """
+
+    # Execute update
+    execute(update_query, params)
+
+    # Fetch updated user
+    updated_user = execute(
+        "SELECT * FROM users WHERE id=:id",
+        {"id": user_id},
+        fetch="one"
+    )
+
+    return jsonify({
+        "message": "User updated successfully.",
+        "user": to_dict(updated_user)
+    })
+
+
 # ----------------------------
 # Auction CRUD
 # ----------------------------
