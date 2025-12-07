@@ -12,9 +12,7 @@ url = URL.create(
     host="localhost",
     port=5432,
     username="postgres",
-
     password="2008",
-
     database="auction_furniture"
 )
 
@@ -26,20 +24,21 @@ app = Flask(__name__)
 # ----------------------------
 # Helper functions
 # ----------------------------
-def to_dict(row):
-    """Convert SQLAlchemy Row object to dictionary."""
-    return dict(row._mapping)
-
 def execute(query, params=None, fetch=None):
     with Session() as session:
         result = session.execute(text(query), params or {})
         session.commit()
 
         if fetch == "one":
-            return result.fetchone()
+            row = result.mappings().fetchone()
+            return row
         if fetch == "all":
-            return result.fetchall()
+            rows = result.mappings().fetchall()
+            return rows
         return None
+
+def to_dict(row):
+    return dict(row)  # now safe
 
 # ----------------------------
 # USERS CRUD
@@ -71,7 +70,7 @@ def create_user():
         return jsonify({"message": "Please provide email and password."}), 400
 
     with Session() as db:
-        # Kolla om e-post redan finns
+        # check e-post
         existing = db.execute(
             text("SELECT id FROM users WHERE email = :email"),
             {"email": email}
@@ -80,7 +79,7 @@ def create_user():
         if existing:
             return jsonify({"message": "Email already registered."}), 409
 
-        # Skapa användare (plaintext password – byt till hashing senare!)
+        # create user
         db.execute(
             text("""
                 INSERT INTO users (f_name, l_name, email, password, phone, role)
@@ -90,7 +89,7 @@ def create_user():
         )
         db.commit()
 
-        # Hämta nya användaren
+        # get new user
         new_user = db.execute(
             text("SELECT id, f_name,l_name, email, phone, role, password FROM users WHERE email = :email"),
             {"email": email}
