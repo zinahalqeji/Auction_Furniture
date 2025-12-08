@@ -1,22 +1,8 @@
-
 from flask import Flask, jsonify, request
-from sqlalchemy import create_engine, URL, text
+from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
+from connection import engine
 
-# ----------------------------
-# Database connection
-# ----------------------------
-
-url = URL.create(
-    drivername="postgresql+psycopg2",
-    host="localhost",
-    port=5432,
-    username="postgres",
-    password="2008",
-    database="auction_furniture"
-)
-
-engine = create_engine(url)
 Session = sessionmaker(bind=engine)
 
 app = Flask(__name__)
