@@ -1,6 +1,9 @@
 from flask import Flask, jsonify, request
-from sqlalchemy import create_engine, URL, text
+from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
+from connection import engine
+from datetime import datetime
+
 
 # ----------------------------
 # Database connection
@@ -22,20 +25,21 @@ app = Flask(__name__)
 # ----------------------------
 # Helper functions
 # ----------------------------
-def to_dict(row):
-    """Convert SQLAlchemy Row object to dictionary."""
-    return dict(row._mapping)
-
 def execute(query, params=None, fetch=None):
     with Session() as session:
         result = session.execute(text(query), params or {})
         session.commit()
 
         if fetch == "one":
-            return result.fetchone()
+            row = result.mappings().fetchone()
+            return row
         if fetch == "all":
-            return result.fetchall()
+            rows = result.mappings().fetchall()
+            return rows
         return None
+
+def to_dict(row):
+    return dict(row)  # now safe
 
 # ----------------------------
 # USERS CRUD
@@ -67,7 +71,7 @@ def create_user():
         return jsonify({"message": "Please provide email and password."}), 400
 
     with Session() as db:
-        # Kolla om e-post redan finns
+        # check e-post
         existing = db.execute(
             text("SELECT id FROM users WHERE email = :email"),
             {"email": email}
@@ -76,7 +80,7 @@ def create_user():
         if existing:
             return jsonify({"message": "Email already registered."}), 409
 
-        # Skapa användare (plaintext password – byt till hashing senare!)
+        # create user
         db.execute(
             text("""
                 INSERT INTO users (f_name, l_name, email, password, phone, role)
@@ -86,7 +90,7 @@ def create_user():
         )
         db.commit()
 
-        # Hämta nya användaren
+        # get new user
         new_user = db.execute(
             text("SELECT id, f_name,l_name, email, phone, role, password FROM users WHERE email = :email"),
             {"email": email}
@@ -110,9 +114,183 @@ def delete_user(user_id):
     execute("DELETE FROM users WHERE id=:id", {"id": user_id})
     return {"message": "User deleted"}
 
+@app.put("/users/<int:user_id>")
+def update_user(user_id):
+    data = request.get_json() or {}
+
+    # Fetch existing user
+    existing_user = execute(
+        "SELECT * FROM users WHERE id=:id",
+        {"id": user_id},
+        fetch="one"
+    )
+
+    if not existing_user:
+        return jsonify({"message": "User not found"}), 404
+
+    # Allowed fields to update
+    fields = ["f_name", "l_name", "email", "phone", "password", "role"]
+
+    # Prepare SQL SET part dynamically
+    updates = []
+    params = {"id": user_id}
+
+    for field in fields:
+        if field in data:
+            updates.append(f"{field} = :{field}")
+            params[field] = data[field]
+
+    if not updates:
+        return jsonify({"message": "No valid fields provided."}), 400
+
+    update_query = f"""
+        UPDATE users
+        SET {', '.join(updates)}
+        WHERE id = :id
+    """
+
+    # Execute update
+    execute(update_query, params)
+
+    # Fetch updated user
+    updated_user = execute(
+        "SELECT * FROM users WHERE id=:id",
+        {"id": user_id},
+        fetch="one"
+    )
+
+    return jsonify({
+        "message": "User updated successfully.",
+        "user": to_dict(updated_user)
+    })
+
+
+# ----------------------------
+# Auction CRUD
+# ----------------------------
+
+@app.get("/auction/<int:auction_id>")
+def get_auction(auction_id):
+    row = execute("SELECT * FROM auction WHERE id=:id", {"id": auction_id}, fetch="one")
+    if not row:
+        return {"message": "auction not found"}, 404
+    return to_dict(row)
+
 @app.get("/auction")
-def get_auction():
+def get_auctions():
     rows = execute("SELECT * FROM auction", fetch="all")
+    return jsonify([to_dict(row) for row in rows])
+
+# ----------------------------
+# Bid CRUD
+# ----------------------------
+
+@app.get("/bids")
+def get_bids():
+    rows = execute("SELECT * FROM bid", fetch="all")
+    return jsonify([to_dict(row) for row in rows])
+
+
+
+@app.get("/bids/<int:bid_id>")
+def get_bid(bid_id):
+    row = execute("SELECT * FROM bid WHERE id=:id", {"id": bid_id}, fetch="one")
+    if not row:
+        return {"message": "bid not found"}, 404
+    return to_dict(row)
+
+
+
+
+@app.post("/bids")
+def create_bid():
+    payload = request.get_json()
+
+    required = ["auction_id", "user_id", "amount"]
+    missing = [field for field in required if field not in payload]
+
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    now = datetime.utcnow()
+
+    with Session() as session:
+        try:
+            session.execute(
+                text("""
+                    INSERT INTO bid (auction_id, user_id, amount, bid_time)
+                    VALUES (:auction_id, :user_id, :amount, :bid_time)
+                """),
+                {
+                    "auction_id": payload["auction_id"],
+                    "user_id": payload["user_id"],
+                    "amount": payload["amount"],
+                    "bid_time": payload.get("bid_time", now)
+                }
+            )
+            session.commit()
+
+        except Exception as e:
+            session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+    return jsonify({"message": "Bid placed"}), 201
+
+
+@app.delete("/bids/<int:bid_id>")
+def delete_bid(bid_id):
+    execute("DELETE FROM bid WHERE id = :id", {"id": bid_id})
+    return {"message": "Bid deleted"}
+
+
+
+@app.put("/bids/<int:bid_id>")
+def update_bid(bid_id):
+    payload = request.get_json()
+
+    # Hämta budet först
+    row = execute("SELECT * FROM bid WHERE id = :id", {"id": bid_id}, fetch="one")
+    if not row:
+        return {"message": "Bid not found"}, 404
+
+    # Förbered uppdatering
+    fields = []
+    values = {"id": bid_id}
+
+    if "amount" in payload:
+        fields.append("amount = :amount")
+        values["amount"] = payload["amount"]
+
+    if "user_id" in payload:
+        fields.append("user_id = :user_id")
+        values["user_id"] = payload["user_id"]
+
+    if "auction_id" in payload:
+        fields.append("auction_id = :auction_id")
+        values["auction_id"] = payload["auction_id"]
+
+    # Om inga fält skickas kan vi stoppa
+    if not fields:
+        return {"message": "No fields to update"}, 400
+
+    sql = f"UPDATE bid SET {', '.join(fields)} WHERE id = :id"
+    execute(sql, values)
+
+    return {"message": "Bid updated"}
+
+
+
+
+
+
+
+# ----------------------------
+# Payment CRUD
+# ----------------------------
+
+@app.get("/payment")
+def get_payment():
+    rows = execute("SELECT * FROM payment", fetch="all")
     return jsonify([to_dict(row) for row in rows])
 
 # ----------------------------
