@@ -224,6 +224,49 @@ def create_bid():
     return jsonify({"message": "Bid placed"}), 201
 
 
+@app.delete("/bids/<int:bid_id>")
+def delete_bid(bid_id):
+    execute("DELETE FROM bid WHERE id = :id", {"id": bid_id})
+    return {"message": "Bid deleted"}
+
+
+
+@app.put("/bids/<int:bid_id>")
+def update_bid(bid_id):
+    payload = request.get_json()
+
+    # Hämta budet först
+    row = execute("SELECT * FROM bid WHERE id = :id", {"id": bid_id}, fetch="one")
+    if not row:
+        return {"message": "Bid not found"}, 404
+
+    # Förbered uppdatering
+    fields = []
+    values = {"id": bid_id}
+
+    if "amount" in payload:
+        fields.append("amount = :amount")
+        values["amount"] = payload["amount"]
+
+    if "user_id" in payload:
+        fields.append("user_id = :user_id")
+        values["user_id"] = payload["user_id"]
+
+    if "auction_id" in payload:
+        fields.append("auction_id = :auction_id")
+        values["auction_id"] = payload["auction_id"]
+
+    # Om inga fält skickas kan vi stoppa
+    if not fields:
+        return {"message": "No fields to update"}, 400
+
+    sql = f"UPDATE bid SET {', '.join(fields)} WHERE id = :id"
+    execute(sql, values)
+
+    return {"message": "Bid updated"}
+
+
+
 
 
 
