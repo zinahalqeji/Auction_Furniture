@@ -5,6 +5,19 @@ from connection import engine
 from datetime import datetime
 
 
+# ----------------------------
+# Database connection
+# ----------------------------
+url = URL.create(
+    drivername="postgresql+psycopg2",
+    host="localhost",
+    port=5432,
+    username="postgres",
+    password="Svante110",
+    database="auction_funiture"
+)
+
+engine = create_engine(url)
 Session = sessionmaker(bind=engine)
 
 app = Flask(__name__)
@@ -283,5 +296,11 @@ def get_payment():
 # ----------------------------
 # Run App
 # ----------------------------
+
+@app.get("/item")
+def get_items():
+    rows = execute("SELECT * FROM furniture_item", fetch="all")
+    return jsonify([to_dict(row) for row in rows])
+
 if __name__ == "__main__":
     app.run(debug=True)
