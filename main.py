@@ -1,9 +1,9 @@
 import os
-from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 from sqlalchemy import create_engine, URL, text
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime, UTC
 
 # ----------------------------
 # Environment & DB setup
@@ -222,7 +222,7 @@ def create_bid():
     if missing:
         return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
 
     with Session() as session:
         try:
