@@ -168,6 +168,13 @@ def get_auctions():
     rows = execute("SELECT * FROM auction", fetch="all")
     return jsonify([to_dict(row) for row in rows])
 
+@app.delete("/auction/<int:auction_id>")
+def delete_auction(auction_id):
+    execute("DELETE FROM auction WHERE id=:id", {"id": auction_id})
+    return {"message": "auction deleted"}
+
+
+
 # ----------------------------
 # Bid CRUD
 # ----------------------------
