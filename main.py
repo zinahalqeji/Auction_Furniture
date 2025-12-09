@@ -1,26 +1,35 @@
-from flask import Flask, jsonify, request
-from sqlalchemy import text
-from sqlalchemy.orm import sessionmaker
-from connection import engine
+import os
 from datetime import datetime
-
+from dotenv import load_dotenv
+from flask import Flask, jsonify, request
+from sqlalchemy import create_engine, URL, text
+from sqlalchemy.orm import sessionmaker
 
 # ----------------------------
-# Database connection
+# Environment & DB setup
 # ----------------------------
+load_dotenv()
+
+# Ensure env values exist
+required_env = ["DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_DATABASE"]
+for key in required_env:
+    if not os.getenv(key):
+        raise RuntimeError(f"Missing env var: {key}")
+
 url = URL.create(
     drivername="postgresql+psycopg2",
-    host="localhost",
-    port=5432,
-    username="postgres",
-    password="Svante110",
-    database="auction_funiture"
+    host=os.getenv("DB_HOST"),
+    port=os.getenv("DB_PORT"),
+    username=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASSWORD"),
+    database=os.getenv("DB_DATABASE")
 )
 
-engine = create_engine(url)
+engine = create_engine(url, pool_pre_ping=True)
 Session = sessionmaker(bind=engine)
 
 app = Flask(__name__)
+app.config["SECRET_KEY"] = "replace-this-in-production"
 
 # ----------------------------
 # Helper functions
@@ -187,7 +196,6 @@ def delete_auction(auction_id):
     return {"message": "auction deleted"}
 
 
-
 # ----------------------------
 # Bid CRUD
 # ----------------------------
@@ -197,17 +205,12 @@ def get_bids():
     rows = execute("SELECT * FROM bid", fetch="all")
     return jsonify([to_dict(row) for row in rows])
 
-
-
 @app.get("/bids/<int:bid_id>")
 def get_bid(bid_id):
     row = execute("SELECT * FROM bid WHERE id=:id", {"id": bid_id}, fetch="one")
     if not row:
         return {"message": "bid not found"}, 404
     return to_dict(row)
-
-
-
 
 @app.post("/bids")
 def create_bid():
@@ -243,13 +246,10 @@ def create_bid():
 
     return jsonify({"message": "Bid placed"}), 201
 
-
 @app.delete("/bids/<int:bid_id>")
 def delete_bid(bid_id):
     execute("DELETE FROM bid WHERE id = :id", {"id": bid_id})
     return {"message": "Bid deleted"}
-
-
 
 @app.put("/bids/<int:bid_id>")
 def update_bid(bid_id):
@@ -285,12 +285,6 @@ def update_bid(bid_id):
 
     return {"message": "Bid updated"}
 
-
-
-
-
-
-
 # ----------------------------
 # Payment CRUD
 # ----------------------------
@@ -300,14 +294,20 @@ def get_payment():
     rows = execute("SELECT * FROM payment", fetch="all")
     return jsonify([to_dict(row) for row in rows])
 
+
 # ----------------------------
-# Run App
+# Furniture_item CRUD
 # ----------------------------
 
-@app.get("/item")
+@app.get("/items")
 def get_items():
     rows = execute("SELECT * FROM furniture_item", fetch="all")
     return jsonify([to_dict(row) for row in rows])
+
+
+# ----------------------------
+# Run App
+# ----------------------------
 
 if __name__ == "__main__":
     app.run(debug=True)
