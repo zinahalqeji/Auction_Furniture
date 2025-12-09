@@ -2,6 +2,8 @@ from flask import Flask, jsonify, request
 from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 from connection import engine
+from datetime import datetime
+
 
 Session = sessionmaker(bind=engine)
 
@@ -174,6 +176,57 @@ def get_auctions():
 def get_bids():
     rows = execute("SELECT * FROM bid", fetch="all")
     return jsonify([to_dict(row) for row in rows])
+
+
+
+@app.get("/bids/<int:bid_id>")
+def get_bid(bid_id):
+    row = execute("SELECT * FROM bid WHERE id=:id", {"id": bid_id}, fetch="one")
+    if not row:
+        return {"message": "bid not found"}, 404
+    return to_dict(row)
+
+
+
+
+@app.post("/bids")
+def create_bid():
+    payload = request.get_json()
+
+    required = ["auction_id", "user_id", "amount"]
+    missing = [field for field in required if field not in payload]
+
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    now = datetime.utcnow()
+
+    with Session() as session:
+        try:
+            session.execute(
+                text("""
+                    INSERT INTO bid (auction_id, user_id, amount, bid_time)
+                    VALUES (:auction_id, :user_id, :amount, :bid_time)
+                """),
+                {
+                    "auction_id": payload["auction_id"],
+                    "user_id": payload["user_id"],
+                    "amount": payload["amount"],
+                    "bid_time": payload.get("bid_time", now)
+                }
+            )
+            session.commit()
+
+        except Exception as e:
+            session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+    return jsonify({"message": "Bid placed"}), 201
+
+
+
+
+
 
 # ----------------------------
 # Payment CRUD

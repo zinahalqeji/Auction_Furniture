@@ -2,6 +2,6 @@ DATABASE = {
     "host": "localhost",
     "port": 5432,
     "username": "postgres",
-    "password": "2008",
+    "password": "123abc",
     "database": "auction_furniture"
 }
