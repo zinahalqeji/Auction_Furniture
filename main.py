@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request,session
+from flask import Flask, jsonify, request
 from sqlalchemy import create_engine, URL, text
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, UTC
@@ -209,7 +209,10 @@ def create_auction():
         VALUES (:item_id, :seller_id, :start_date, :end_date, :start_price, :reserve_price, :status)
     """, data)
     new_auction = execute("SELECT * FROM auction ORDER BY id DESC LIMIT 1", fetch="one")
-    return to_dict(new_auction), 201
+    return jsonify({
+        "message": "Auction created successfully.",
+        "auction": to_dict(new_auction)
+    }), 201
 
 
 
