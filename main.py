@@ -205,6 +205,16 @@ def get_bids():
     rows = execute("SELECT * FROM bid", fetch="all")
     return jsonify([to_dict(row) for row in rows])
 
+
+@app.delete("/payment/<int:payment_id>")
+def delete_payment(payment_id):
+    execute(
+        "DELETE FROM payment WHERE id = :id",
+        params={"id": payment_id},
+        fetch=None
+    )
+    return {"message": "Payment deleted"}
+
 @app.get("/payment/<int:payment_id>")
 def get_payment_by_id(payment_id):
     row = execute(
