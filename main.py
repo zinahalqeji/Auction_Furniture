@@ -122,6 +122,18 @@ def get_bids():
     rows = execute("SELECT * FROM bid", fetch="all")
     return jsonify([to_dict(row) for row in rows])
 
+@app.get("/payment/<int:payment_id>")
+def get_payment_by_id(payment_id):
+    row = execute(
+        "SELECT * FROM payment WHERE id = :id",
+        params={"id": payment_id},
+        fetch="one"
+    )
+
+    if row is None:
+        return {"message": "Payment not found"}, 404
+
+    return jsonify(to_dict(row))
 # ----------------------------
 # Run App
 # ----------------------------
