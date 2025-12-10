@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request,session
 from sqlalchemy import create_engine, URL, text
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, UTC
@@ -194,6 +194,24 @@ def get_auctions():
 def delete_auction(auction_id):
     execute("DELETE FROM auction WHERE id=:id", {"id": auction_id})
     return {"message": "auction deleted"}
+
+
+@app.post("/auctions")
+def create_auction():
+    data = request.get_json() or {}
+    required = ["item_id", "start_date", "end_date", "start_price", "reserve_price", "seller_id"]
+    if not all(k in data for k in required):
+        return {"error": f"Missing fields: {', '.join(required)}"}, 400
+
+    data["status"] = "ongoing"
+    execute("""
+        INSERT INTO auction (item_id, seller_id, start_date, end_date, start_price, reserve_price, status)
+        VALUES (:item_id, :seller_id, :start_date, :end_date, :start_price, :reserve_price, :status)
+    """, data)
+    new_auction = execute("SELECT * FROM auction ORDER BY id DESC LIMIT 1", fetch="one")
+    return to_dict(new_auction), 201
+
+
 
 
 # ----------------------------
