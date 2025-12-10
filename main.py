@@ -1,6 +1,9 @@
 from flask import Flask, jsonify, request
 from sqlalchemy import create_engine, URL, text
 from sqlalchemy.orm import sessionmaker
+from flask import Flask, jsonify, request
+from datetime import datetime
+
 
 # ----------------------------
 # Database connection
@@ -121,6 +124,60 @@ def get_auction():
 def get_bids():
     rows = execute("SELECT * FROM bid", fetch="all")
     return jsonify([to_dict(row) for row in rows])
+
+@app.post("/payment")
+def create_payment():
+    data = request.json
+
+    amount = data["amount"]
+    commission_rate = 0.10
+    commission_amount = amount * commission_rate
+    net_amount = amount - commission_amount
+
+    execute(
+        """
+        INSERT INTO payment (
+            auction_id,
+            buyer_id,
+            amount,
+            commission_rate,
+            commission_amount,
+            payment_date,
+            net_amount,
+            method,
+            status,
+            invoice_number
+        )
+        VALUES (
+            :auction_id,
+            :buyer_id,
+            :amount,
+            :commission_rate,
+            :commission_amount,
+            :payment_date,
+            :net_amount,
+            :method,
+            :status,
+            :invoice_number
+        )
+        """,
+        params={
+            "auction_id": data["auction_id"],
+            "buyer_id": data["buyer_id"],
+            "amount": amount,
+            "commission_rate": commission_rate,
+            "commission_amount": commission_amount,
+            "payment_date": datetime.utcnow(),  # ose datetime.now()
+            "net_amount": net_amount,
+            "method": data["method"],   # p.sh. "bank_transfer", "credit", "paypal"
+            "status": data.get("status", "pending"),
+            "invoice_number": data.get("invoice_number")
+        },
+        fetch=None
+    )
+
+    return {"message": "Payment created"}, 201
+
 
 # ----------------------------
 # Run App
