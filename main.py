@@ -205,60 +205,18 @@ def get_bids():
     rows = execute("SELECT * FROM bid", fetch="all")
     return jsonify([to_dict(row) for row in rows])
 
-@app.post("/payment")
-def create_payment():
-    data = request.json
-
-    amount = data["amount"]
-    commission_rate = 0.10
-    commission_amount = amount * commission_rate
-    net_amount = amount - commission_amount
-
-    execute(
-        """
-        INSERT INTO payment (
-            auction_id,
-            buyer_id,
-            amount,
-            commission_rate,
-            commission_amount,
-            payment_date,
-            net_amount,
-            method,
-            status,
-            invoice_number
-        )
-        VALUES (
-            :auction_id,
-            :buyer_id,
-            :amount,
-            :commission_rate,
-            :commission_amount,
-            :payment_date,
-            :net_amount,
-            :method,
-            :status,
-            :invoice_number
-        )
-        """,
-        params={
-            "auction_id": data["auction_id"],
-            "buyer_id": data["buyer_id"],
-            "amount": amount,
-            "commission_rate": commission_rate,
-            "commission_amount": commission_amount,
-            "payment_date": datetime.utcnow(),  # ose datetime.now()
-            "net_amount": net_amount,
-            "method": data["method"],   # p.sh. "bank_transfer", "credit", "paypal"
-            "status": data.get("status", "pending"),
-            "invoice_number": data.get("invoice_number")
-        },
-        fetch=None
+@app.get("/payment/<int:payment_id>")
+def get_payment_by_id(payment_id):
+    row = execute(
+        "SELECT * FROM payment WHERE id = :id",
+        params={"id": payment_id},
+        fetch="one"
     )
 
-    return {"message": "Payment created"}, 201
+    if row is None:
+        return {"message": "Payment not found"}, 404
 
-
+    return jsonify(to_dict(row))
 # ----------------------------
 # Run App
 # ----------------------------
