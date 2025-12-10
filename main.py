@@ -205,104 +205,58 @@ def get_bids():
     rows = execute("SELECT * FROM bid", fetch="all")
     return jsonify([to_dict(row) for row in rows])
 
-@app.get("/bids/<int:bid_id>")
-def get_bid(bid_id):
-    row = execute("SELECT * FROM bid WHERE id=:id", {"id": bid_id}, fetch="one")
-    if not row:
-        return {"message": "bid not found"}, 404
-    return to_dict(row)
+@app.post("/payment")
+def create_payment():
+    data = request.json
 
-@app.post("/bids")
-def create_bid():
-    payload = request.get_json()
+    amount = data["amount"]
+    commission_rate = 0.10
+    commission_amount = amount * commission_rate
+    net_amount = amount - commission_amount
 
-    required = ["auction_id", "user_id", "amount"]
-    missing = [field for field in required if field not in payload]
+    execute(
+        """
+        INSERT INTO payment (
+            auction_id,
+            buyer_id,
+            amount,
+            commission_rate,
+            commission_amount,
+            payment_date,
+            net_amount,
+            method,
+            status,
+            invoice_number
+        )
+        VALUES (
+            :auction_id,
+            :buyer_id,
+            :amount,
+            :commission_rate,
+            :commission_amount,
+            :payment_date,
+            :net_amount,
+            :method,
+            :status,
+            :invoice_number
+        )
+        """,
+        params={
+            "auction_id": data["auction_id"],
+            "buyer_id": data["buyer_id"],
+            "amount": amount,
+            "commission_rate": commission_rate,
+            "commission_amount": commission_amount,
+            "payment_date": datetime.utcnow(),  # ose datetime.now()
+            "net_amount": net_amount,
+            "method": data["method"],   # p.sh. "bank_transfer", "credit", "paypal"
+            "status": data.get("status", "pending"),
+            "invoice_number": data.get("invoice_number")
+        },
+        fetch=None
+    )
 
-    if missing:
-        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
-
-    now = datetime.now(UTC)
-
-    with Session() as session:
-        try:
-            session.execute(
-                text("""
-                    INSERT INTO bid (auction_id, user_id, amount, bid_time)
-                    VALUES (:auction_id, :user_id, :amount, :bid_time)
-                """),
-                {
-                    "auction_id": payload["auction_id"],
-                    "user_id": payload["user_id"],
-                    "amount": payload["amount"],
-                    "bid_time": payload.get("bid_time", now)
-                }
-            )
-            session.commit()
-
-        except Exception as e:
-            session.rollback()
-            return jsonify({"error": str(e)}), 500
-
-    return jsonify({"message": "Bid placed"}), 201
-
-@app.delete("/bids/<int:bid_id>")
-def delete_bid(bid_id):
-    execute("DELETE FROM bid WHERE id = :id", {"id": bid_id})
-    return {"message": "Bid deleted"}
-
-@app.put("/bids/<int:bid_id>")
-def update_bid(bid_id):
-    payload = request.get_json()
-
-    # Hämta budet först
-    row = execute("SELECT * FROM bid WHERE id = :id", {"id": bid_id}, fetch="one")
-    if not row:
-        return {"message": "Bid not found"}, 404
-
-    # Förbered uppdatering
-    fields = []
-    values = {"id": bid_id}
-
-    if "amount" in payload:
-        fields.append("amount = :amount")
-        values["amount"] = payload["amount"]
-
-    if "user_id" in payload:
-        fields.append("user_id = :user_id")
-        values["user_id"] = payload["user_id"]
-
-    if "auction_id" in payload:
-        fields.append("auction_id = :auction_id")
-        values["auction_id"] = payload["auction_id"]
-
-    # Om inga fält skickas kan vi stoppa
-    if not fields:
-        return {"message": "No fields to update"}, 400
-
-    sql = f"UPDATE bid SET {', '.join(fields)} WHERE id = :id"
-    execute(sql, values)
-
-    return {"message": "Bid updated"}
-
-# ----------------------------
-# Payment CRUD
-# ----------------------------
-
-@app.get("/payment")
-def get_payment():
-    rows = execute("SELECT * FROM payment", fetch="all")
-    return jsonify([to_dict(row) for row in rows])
-
-
-# ----------------------------
-# Furniture_item CRUD
-# ----------------------------
-
-@app.get("/items")
-def get_items():
-    rows = execute("SELECT * FROM furniture_item", fetch="all")
-    return jsonify([to_dict(row) for row in rows])
+    return {"message": "Payment created"}, 201
 
 
 # ----------------------------
