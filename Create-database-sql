@@ -1,0 +1,85 @@
+-- User Roles
+CREATE TYPE user_role AS ENUM ('buyer', 'seller', 'admin');
+
+-- Auction Status
+CREATE TYPE auction_status AS ENUM ('ongoing', 'ended', 'stopped', 'paid');
+
+-- Payment Method
+CREATE TYPE payment_method AS ENUM ('credit', 'paypal', 'bank_transfer');
+
+-- Payment Status
+CREATE TYPE payment_status AS ENUM ('pending', 'successful', 'failed');
+
+-- Notification Type
+CREATE TYPE notification_type AS ENUM ('bid', 'won', 'auction_end', 'payment', 'out_bid');
+
+-- Notification Status
+CREATE TYPE notification_status AS ENUM ('ongoing', 'ended', 'stopped', 'paid');
+
+-- Furniture Condition
+CREATE TYPE furniture_condition AS ENUM ('antique', 'like_new', 'new', 'good', 'poor');
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    f_name VARCHAR,
+    l_name VARCHAR,
+    phone VARCHAR,
+    email VARCHAR UNIQUE,
+    password VARCHAR,
+    role user_role NOT NULL,
+    profile_picture TEXT
+);
+
+CREATE TABLE furniture_item (
+    id SERIAL PRIMARY KEY,
+    seller_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    item_name VARCHAR,
+    description TEXT,
+    category VARCHAR,
+    material VARCHAR,
+    dimensions VARCHAR,
+    images TEXT,
+    condition furniture_condition
+);
+
+CREATE TABLE auction (
+    id SERIAL PRIMARY KEY,
+    item_id INT NOT NULL UNIQUE REFERENCES furniture_item(id) ON DELETE CASCADE,
+    seller_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    start_date TIMESTAMP,
+    end_date TIMESTAMP,
+    start_price DECIMAL,
+    reserve_price DECIMAL,
+    status auction_status
+);
+
+CREATE TABLE bid (
+    id SERIAL PRIMARY KEY,
+    auction_id INT NOT NULL REFERENCES auction(id) ON DELETE CASCADE,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    amount DECIMAL,
+    bid_time TIMESTAMP
+);
+
+CREATE TABLE payment (
+    id SERIAL PRIMARY KEY,
+    auction_id INT NOT NULL REFERENCES auction(id) ON DELETE CASCADE,
+    buyer_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    amount DECIMAL,
+    commission_rate FLOAT,
+    commission_amount DECIMAL,
+    payment_date TIMESTAMP,
+    net_amount DECIMAL,
+    method payment_method,
+    status payment_status,
+    invoice_number VARCHAR
+);
+
+CREATE TABLE notification (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type notification_type,
+    message TEXT,
+    status notification_status,
+    created_at TIMESTAMP
+);
