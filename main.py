@@ -205,6 +205,9 @@ def get_bids():
     rows = execute("SELECT * FROM bid", fetch="all")
     return jsonify([to_dict(row) for row in rows])
 
+# ----------------------------
+# Payment CRUD
+# ----------------------------
 
 @app.delete("/payment/<int:payment_id>")
 def delete_payment(payment_id):
@@ -227,6 +230,7 @@ def get_payment_by_id(payment_id):
         return {"message": "Payment not found"}, 404
 
     return jsonify(to_dict(row))
+
 # ----------------------------
 # Run App
 # ----------------------------
