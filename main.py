@@ -214,8 +214,10 @@ def create_auction():
         "auction": to_dict(new_auction)
     }), 201
 
-
-
+@app.get("/auctions/ongoing")
+def get_ongoing_auctions():
+    auctions = execute("SELECT * FROM auction WHERE status='ongoing' ORDER BY end_date", fetch="all")
+    return jsonify([to_dict(a) for a in auctions])
 
 # ----------------------------
 # Bid CRUD
