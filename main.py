@@ -229,6 +229,110 @@ def get_bids():
     return jsonify([to_dict(row) for row in rows])
 
 # ----------------------------
+# Furniture_item CRUD
+# ----------------------------
+
+@app.get("/items")
+def get_items():
+    items = execute("SELECT * FROM furniture_item", fetch="all")
+    return jsonify([to_dict(i) for i in items])
+@app.get("/items/<int:item_id>")
+def get_item(item_id):
+    item = execute("SELECT * FROM furniture_item WHERE id=:id", {"id": item_id}, fetch="one")
+
+    if not item:
+        return {"error": "Item not found"}, 404
+
+    return to_dict(item)
+
+
+@app.post("/items")
+def create_item():
+    data = request.get_json() or {}
+    required = ["item_name", "description", "category", "material", "dimensions", "condition", "seller_id"]
+    if not all(k in data for k in required):
+        return {"error": f"Missing fields: {', '.join(required)}"}, 400
+
+    execute("""
+            INSERT INTO furniture_item (seller_id, item_name, description, category, material, dimensions, images,
+                                        condition)
+            VALUES (:seller_id, :item_name, :description, :category, :material, :dimensions, :images, :condition)
+            """, data)
+    new_item = execute("SELECT * FROM furniture_item ORDER BY id DESC LIMIT 1", fetch="one")
+    return jsonify({
+        "message": "Item created successfully.",
+        "item": to_dict(new_item)
+    }), 201
+
+
+@app.put("/items/<int:item_id>")
+def update_item(item_id):
+    data = request.get_json() or {}
+
+    # Fetch existing item
+    existing_item = execute(
+        "SELECT * FROM furniture_item WHERE id=:id",
+        {"id": item_id},
+        fetch="one"
+    )
+
+    if not existing_item:
+        return jsonify({"message": "Item not found"}), 404
+
+    # Allowed fields to update
+    fields = ["item_name", "description", "category", "material", "dimensions", "images", "condition"]
+
+    updates = []
+    params = {"id": item_id}
+
+    for field in fields:
+        if field in data:
+            updates.append(f"{field} = :{field}")
+            params[field] = data[field]
+
+    if not updates:
+        return jsonify({"message": "No valid fields provided."}), 400
+
+    update_query = f"""
+        UPDATE furniture_item
+        SET {', '.join(updates)}
+        WHERE id = :id
+    """
+
+    # Execute update
+    execute(update_query, params)
+
+    # Fetch updated item
+    updated_item = execute(
+        "SELECT * FROM furniture_item WHERE id=:id",
+        {"id": item_id},
+        fetch="one"
+    )
+
+    return jsonify({
+        "message": "Item updated successfully.",
+        "item": to_dict(updated_item)
+    })
+
+
+
+
+@app.delete("/items/<int:item_id>")
+def delete_item(item_id):
+    item = execute("SELECT * FROM furniture_item WHERE id=:id", {"id": item_id}, fetch="one")
+
+    if not item:
+        return {"error": "Item not found"}, 404
+
+    if item["seller_id"] != "user_id":
+        return {"error": "Forbidden"}, 403
+
+    execute("DELETE FROM furniture_item WHERE id=:id", {"id": item_id})
+
+    return {"message": "Item deleted"}
+
+
+# ----------------------------
 # Payment CRUD
 # ----------------------------
 
