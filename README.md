@@ -36,251 +36,274 @@ DB_PASSWORD=your_db_password
 DB_DATABASE=my_app_db
 ```
 
-
-
-## ✨ Features
-
-- User registration, login (session-based), and authentication
-- CRUD operations for furniture items
-- Create & manage auctions
-- Place bids on auctions
-- Maintain a personal watchlist for auctions
-- PostgreSQL relational database
-- Ready-to-run with .env configuration
-- Includes Postman collection
-
-
-# 1. Project Overview
-
-Auction Furniture API allows users to browse furniture, participate in auctions, and place bids in real time.
-It is built for learning backend architecture, REST design, and database interaction.
-
-# 2. Technical Architecture
-## 🏛️ Architecture Summary
-
-- Frontend: Any client (Postman, React, mobile app — not included in repo)
-
-- Backend: Flask REST API
-
-- Database: PostgreSQL
-
-- ORM: SQLAlchemy
-
-- Authentication: Flask signed session cookies
-
-- External APIs: None
-
-## 🔧 Why These Choices?
-
-- Flask — lightweight, easy to understand for educational projects
-
-- PostgreSQL — reliable SQL database for relational data
-
-- SQLAlchemy — clean mapping between tables and Python logic
-
-# 3. Installation & Running the Project
-## 🔹 Requirements
-
-- Python 3.10+
-
-- PostgreSQL 13+
-
-- pip (Python packages)
-
-## 🔹 Install Python dependencies
-```php
-pip install Flask SQLAlchemy psycopg2-binary python-dotenv
-```
-or
-```css
-pip install -r requirements.txt
-```
-
-# 4. Configuration (.env)
-
-Configuration is loaded using python-dotenv.
-
-## Example .env
-
-```ini
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=your_password
-DB_DATABASE=auction_furniture
-SECRET_KEY=supersecretkey
-```
-## Setup
+## Steps
+1.Copy the example file:
 ```bash
-cp .env .env
+cp .env.example .env
 ```
-Then edit .env with your own values.
+2.Edit `.env` and set:
 
-main.py loads all environment variables automatically.
-
-# 5. Database Setup
-
-Your project includes create-database.sql.
-
-## Create database
-```psql
+- `DB_HOST` – host where PostgreSQL is running (often localhost or a container name)
+- `DB_PORT` – PostgreSQL port (default 5432)
+- `DB_USER` – PostgreSQL username
+- `DB_PASSWORD` – PostgreSQL password
+- `DB_DATABASE` – database name for this app, e.g. flasky_shop
+  
+3.`main.py` loads the .env on startup:
+```bash
+from dotenv import load_dotenv
+load_dotenv()
+```
+The values are used to construct the SQLAlchemy URL:
+```bash
+url = URL.create(
+    drivername="postgresql+psycopg2",
+    host=os.getenv("DB_HOST"),
+    port=os.getenv("DB_PORT"),
+    username=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASSWORD"),
+    database=os.getenv("DB_DATABASE")
+)
+```
+___
+## Database Setup
+The project expects a PostgreSQL database with the schema defined in create-database.sql.
+```bash
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    f_name VARCHAR,
+    l_name VARCHAR,
+    phone VARCHAR,
+    email VARCHAR UNIQUE,
+    password VARCHAR,
+    role user_role NOT NULL,
+    profile_picture TEXT
+);
+CREATE TABLE furniture_item (
+    id SERIAL PRIMARY KEY,
+    seller_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    item_name VARCHAR,
+    description TEXT,
+    category VARCHAR,
+    material VARCHAR,
+    dimensions VARCHAR,
+    images TEXT,
+    condition furniture_condition
+);
+CREATE TABLE auction (
+    id SERIAL PRIMARY KEY,
+    item_id INT NOT NULL UNIQUE REFERENCES furniture_item(id) ON DELETE CASCADE,
+    seller_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    start_date TIMESTAMP,
+    end_date TIMESTAMP,
+    start_price DECIMAL,
+    reserve_price DECIMAL,
+    status auction_status
+);
+CREATE TABLE bid (
+    id SERIAL PRIMARY KEY,
+    auction_id INT NOT NULL REFERENCES auction(id) ON DELETE CASCADE,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    amount DECIMAL,
+    bid_time TIMESTAMP
+);
+CREATE TABLE payment (
+    id SERIAL PRIMARY KEY,
+    auction_id INT NOT NULL REFERENCES auction(id) ON DELETE CASCADE,
+    buyer_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    amount DECIMAL,
+    commission_rate FLOAT,
+    commission_amount DECIMAL,
+    payment_date TIMESTAMP,
+    net_amount DECIMAL,
+    method payment_method,
+    status payment_status,
+    invoice_number VARCHAR
+);
+CREATE TABLE notification (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type notification_type,
+    message TEXT,
+    status notification_status,
+    created_at TIMESTAMP
+);
+```
+## Steps
+1.Create the database in PostgreSQL (name must match `DB_DATABASE` in `.env`):
+```bash
 CREATE DATABASE auction_furniture;
 ```
-## Import schema
-```psql
-psql -h localhost -U postgres -d auction_furniture -f create-database.sql
+Run the schema script:
+```bash
+psql -h localhost -U your_db_user -d auction_furniture -f create-database.sql
 ```
-## Tables included
+3.(Optional) Insert some initial data (e.g. items and auctions rows) using SQL or any DB tool.
 
-- users
-- furniture
-- auctions
-- bids
-- notification
-- payment
+Add default values in the DB
+___
 
-(Optional) Add seed data for testing.
+## Running the Application
+From the project root:
 
-# 6. Running the Application
-## (Recommended) Set up a virtual environment
+1. (Optional but recommended) Create and activate a virtual environment:
 ```bash
 python -m venv venv
-source venv/bin/activate   # macOS/Linux
-# venv\Scripts\activate    # Windows
+source venv/bin/activate      # on macOS/Linux
+# venv\Scripts\activate       # on Windows
 ```
+2. Install dependencies (see above):
+```bash
+pip install -r requirements.txt
+# or
+pip install Flask SQLAlchemy psycopg2-binary python-dotenv
+```
+3. Make sure `.env` is configured and the database is created.
 
-## Start backend
+4. Run the app:
 ```bash
 python main.py
 ```
-
-API will run at:
-
-👉 http://localhost:5000
-
-# 7. Authentication & Sessions
-
-- The system uses Flask session cookies:
-
-- Logging in with POST /login sets a cookie
-
-- All protected routes require that cookie
-
-- Postman automatically stores and reuses cookies
-
-Protected routes include:
-
-- Creating furniture
-
-- Creating auctions
-
-- Placing bids
-
-- Managing watchlists
-
-- Admin-style operations
-
-# 8. REST API Routes
-## Users
-### Method	Route	Description
-POST	/users	Register a user
-GET	/users	List all users (auth required)
-Authentication
-Method	Route	Description
-POST	/login	Log in
-GET	/login	Get currently logged-in user
-DELETE	/login	Log out
-Furniture
-Method	Route	Description
-GET	/furniture	List all furniture
-GET	/furniture/<id>	Get furniture by ID
-POST	/furniture	Create furniture (auth required)
-PUT	/furniture/<id>	Update furniture
-DELETE	/furniture/<id>	Delete furniture
-Auctions
-Method	Route	Description
-GET	/auctions	List auctions
-GET	/auctions/<id>	Get auction
-POST	/auctions	Create auction (auth required)
-PUT	/auctions/<id>	Update auction
-DELETE	/auctions/<id>	Delete an auction
-Bids
-Method	Route	Description
-GET	/auctions/<id>/bids	List bids for auction
-POST	/bids	Place a bid (auth required)
-Watchlist
-Method	Route	Description
-GET	/watchlist	Get user watchlist
-POST	/watchlist	Add auction to watchlist
-DELETE	/watchlist	Remove from watchlist
-# 9. Testing
-## Run tests
+By default Flask will run on:
 ```bash
-pytest
+http://localhost:5000
 ```
-Types of tests included
+___
 
-❗ (If you want, I can generate these for you)
-Common test types:
+## Authentication & Sessions
+- Authentication is session-based using Flask’s signed cookies.
+- Logging in via POST /login will set a session cookie in the client.
+- Routes decorated with @login_required will only work if that cookie is sent.
+In Postman:
 
-Unit tests (models + auth logic)
+- When you call POST /login, Postman will automatically store the session cookie.
+- Subsequent requests to protected routes (within the same collection/environment and to the same host) will automatically include the cookie.
+  
+ Protected routes (require login):
 
-Integration tests (routes)
+- GET /users
+- POST /users
+- GET /users/<user_id>
+- PUT / users/<user_id>
+- DELETE / users/<user_id>
+- GET /auction
+- POST /auction
+- GET /auction/<auction_id>
+- GET/ auction/ongoing
+- DELETE /auction/<auction_id>
+- GET /items
+- POST /items
+- GET /items/<items_id>
+- PUT / items/<items_id>
+- DELETE / items/<items_id>
+- GET /payment
+- POST /payment
+- GET /payment/<payment_id>
+- PUT / payments/<payment_id>
+- DELETE / payment/<payment_id>
+- GET /bids
+- POST /bid
+- GET /bids/<bid_id>
+- PUT / bids/<bid_id>
+- DELETE / bids/<bid_id>
+___
 
-E2E tests via Postman
+## REST API
+Base URL (local):
+```bash
+http://localhost:5000
+```
+### Users
+`POST /users`
+Create a new user.
 
-# 10. Build & Deployment
-Build
+- Auth: Public
+- Body (JSON):
+```bash
+ {
+        "email": "ava.patel@example.com",
+        "f_name": "Ava",
+        "l_name": "Patel",
+        "password": "ava123",
+        "phone": "555-0740",
+        "profile_picture": "ava.jpg",
+        "role": "buyer"
+    }
+```
+- Responses:
 
-No build step (Python project).
+- `201 Created `– user created successfully
+- `400 Bad Request` – missing required fields
+- `409 Conflict` – email already registered
 
-Deployment suggestions
+`GET /users`
+- Get all users.
+- Auth: Requires login
 
-Docker container
+Responses:
 
-Railway / Render / Fly.io
+- 200 OK – list of users:
+```bash
+[
+    {
+        "email": "ava.patel@example.com",
+        "f_name": "Ava",
+        "id": 8,
+        "l_name": "Patel",
+        "password": "ava123",
+        "phone": "555-0740",
+        "profile_picture": "ava.jpg",
+        "role": "buyer"
+    }
+]
+```
+- `401 Unauthorized `– if not logged in
+___
+### Auth
+`POST /login`
+Log in with email and password.
 
-Heroku (if using free tier alternatives)
+- Auth: Public
+- Body (JSON):
+```bash
+{
+  "email": "olle.wilson@example.com",
+  "password": "olle123"
+}
+```
+- Responses:
 
-GitHub Actions CI/CD
+`200 OK `– login successful, session cookie set
+```bash
+{
+  "message": "Login successful.",
+  "user": {
+    "id": 5,
+    "name": "Olle",
+    "email": "olle.wilson@example.com"
+  }
+}
+```
+- `400 Bad Request` – missing email or password
+- `401 Unauthorized` – invalid credentials
+- 
+Passwords are stored in plaintext in this demo. This should be changed to proper password hashing in any real-world use.
 
-I can generate a full Dockerfile + docker-compose if you want.
+`### GET /login`
+Get the currently logged-in user (from session).
 
-# 11. Known Bugs / Limitations
+- Auth: Requires active session
 
-No password hashing (can be added on request)
+- Responses:
 
-No real-time auction updates (WebSockets not implemented)
+`200 OK `– user info
+`401 Unauthorized `– no user logged in or user not found (session is cleared)
 
-Basic session auth (JWT optional)
+`### DELETE /login`
+Log out (clear session).
 
-No admin panel
+- Auth: Session-based
 
-Minimal error handling in some routes
+- Response:
 
-# 12. Demo Instructions
-Test User
-
-Email: test@example.com
-Password: 123456
-
-Suggested demo flow
-
-1️⃣ Register or log in
-2️⃣ List furniture
-3️⃣ Create a new furniture item
-4️⃣ Create an auction for an item
-5️⃣ Place multiple bids
-6️⃣ Show watchlist
-7️⃣ Show error handling (insufficient bid, invalid auction, etc.)
-
-# 13. Contact & Team
-
-Developer: You
-
-GitHub repo link
-
-Project board
-
-Documentation folder
-
+`200 OK `– session cleared
