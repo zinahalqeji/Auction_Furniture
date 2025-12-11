@@ -5,6 +5,39 @@ The system supports users, furniture items, auction listings, bids, and notifica
 
 The API is designed for educational/demo purposes and is fully testable via Postman.
 
+
+## Requirements
+- Python 3.10+ (earlier 3.x will probably work too)
+- PostgreSQL 13+ (or compatible)
+- pip for installing Python packages
+  
+Python packages used (install via pip):
+
+- Flask
+- SQLAlchemy
+- psycopg2-binary
+- python-dotenv
+  
+```bash
+pip install Flask SQLAlchemy psycopg2-binary python-dotenv
+```
+___
+## Configuration: .env
+Configuration is read from environment variables using python-dotenv.
+
+Example file: `.env`
+```bash
+# Copy this file to .env and fill in your local values
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
+DB_DATABASE=my_app_db
+```
+
+
+
 ## ✨ Features
 
 - User registration, login (session-based), and authentication
@@ -85,69 +118,71 @@ Then edit .env with your own values.
 
 main.py loads all environment variables automatically.
 
-5. Database Setup
+# 5. Database Setup
 
 Your project includes create-database.sql.
 
-Create database
+## Create database
+```psql
 CREATE DATABASE auction_furniture;
-
-Import schema
+```
+## Import schema
+```psql
 psql -h localhost -U postgres -d auction_furniture -f create-database.sql
+```
+## Tables included
 
-Tables included
-
-users
-
-furniture
-
-auctions
-
-bids
-
-watchlist
+- users
+- furniture
+- auctions
+- bids
+- notification
+- payment
 
 (Optional) Add seed data for testing.
 
-6. Running the Application
-(Recommended) Set up a virtual environment
+# 6. Running the Application
+## (Recommended) Set up a virtual environment
+```bash
 python -m venv venv
 source venv/bin/activate   # macOS/Linux
 # venv\Scripts\activate    # Windows
+```
 
-Start backend
+## Start backend
+```bash
 python main.py
-
+```
 
 API will run at:
 
 👉 http://localhost:5000
 
-7. Authentication & Sessions
+# 7. Authentication & Sessions
 
-The system uses Flask session cookies:
+- The system uses Flask session cookies:
 
-Logging in with POST /login sets a cookie
+- Logging in with POST /login sets a cookie
 
-All protected routes require that cookie
+- All protected routes require that cookie
 
-Postman automatically stores and reuses cookies
+- Postman automatically stores and reuses cookies
 
 Protected routes include:
 
-Creating furniture
+- Creating furniture
 
-Creating auctions
+- Creating auctions
 
-Placing bids
+- Placing bids
 
-Managing watchlists
+- Managing watchlists
 
-Admin-style operations
+- Admin-style operations
 
-8. REST API Routes
-Users
-Method	Route	Description
+# 8. REST API Routes
+## Users
+### Method	Route	Description
 POST	/users	Register a user
 GET	/users	List all users (auth required)
 Authentication
@@ -178,10 +213,11 @@ Method	Route	Description
 GET	/watchlist	Get user watchlist
 POST	/watchlist	Add auction to watchlist
 DELETE	/watchlist	Remove from watchlist
-9. Testing
-Run tests
+# 9. Testing
+## Run tests
+```bash
 pytest
-
+```
 Types of tests included
 
 ❗ (If you want, I can generate these for you)
@@ -193,7 +229,7 @@ Integration tests (routes)
 
 E2E tests via Postman
 
-10. Build & Deployment
+# 10. Build & Deployment
 Build
 
 No build step (Python project).
@@ -210,7 +246,7 @@ GitHub Actions CI/CD
 
 I can generate a full Dockerfile + docker-compose if you want.
 
-11. Known Bugs / Limitations
+# 11. Known Bugs / Limitations
 
 No password hashing (can be added on request)
 
@@ -222,7 +258,7 @@ No admin panel
 
 Minimal error handling in some routes
 
-12. Demo Instructions
+# 12. Demo Instructions
 Test User
 
 Email: test@example.com
@@ -238,7 +274,7 @@ Suggested demo flow
 6️⃣ Show watchlist
 7️⃣ Show error handling (insufficient bid, invalid auction, etc.)
 
-13. Contact & Team
+# 13. Contact & Team
 
 Developer: You
 
