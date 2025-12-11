@@ -358,6 +358,33 @@ def get_payment_by_id(payment_id):
 
     return jsonify(to_dict(row))
 
+@app.get("/payment")
+def get_payment():
+    rows = execute("SELECT * FROM payment", fetch="all")
+    return jsonify([to_dict(row) for row in rows])
+
+
+@app.put("/payments/<int:payment_id>")
+def update_payment(payment_id):
+    data = request.get_json() or {}
+    allowed = ["status"]
+    updates = {k: v for k, v in data.items() if k in allowed}
+    if not updates:
+        return {"error": "No valid fields to update"}, 400
+
+    payment = execute("SELECT * FROM payment WHERE id=:id", {"id": payment_id}, fetch="one")
+    if not payment:
+        return {"error": "Payment not found"}, 404
+
+    set_clause = ", ".join([f"{k} = :{k}" for k in updates])
+    updates["id"] = payment_id
+    execute(f"UPDATE payment SET {set_clause} WHERE id=:id", updates)
+    updated = execute("SELECT * FROM payment WHERE id=:id", {"id": payment_id}, fetch="one")
+    return to_dict(updated)
+
+
+
+
 # ----------------------------
 # Run App
 # ----------------------------
